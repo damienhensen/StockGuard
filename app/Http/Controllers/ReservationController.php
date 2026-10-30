@@ -19,6 +19,11 @@ class ReservationController extends Controller
         $data = $request->validated();
 
         $reservation = DB::transaction(function () use ($product, $data) {
+            $product = Product::query()
+                ->whereKey($product->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             if ($product->available_quantity < $data['quantity']) {
                 throw new HttpResponseException(
                     response()->json([
