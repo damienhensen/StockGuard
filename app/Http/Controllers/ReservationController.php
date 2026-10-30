@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ApiErrorCode;
 use App\Http\Requests\StoreReservationRequest;
 use App\Http\Resources\ReservationResource;
 use App\Models\Product;
@@ -25,11 +26,13 @@ class ReservationController extends Controller
                 ->firstOrFail();
 
             if ($product->available_quantity < $data['quantity']) {
+                $error = ApiErrorCode::InsufficientStock;
+
                 throw new HttpResponseException(
                     response()->json([
                         'error' => [
-                            'code' => 'INSUFFICIENT_STOCK',
-                            'message' => 'Not enough stock available.',
+                            'code' => $error->value,
+                            'message' => $error->message(),
                         ],
                     ], 409),
                 );
