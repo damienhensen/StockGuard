@@ -19,11 +19,32 @@ class ReservationController extends Controller
     ): JsonResponse {
         $data = $request->validated();
 
-        $reservation = DB::transaction(function () use ($product, $data) {
+        [$reservation, $replayed] = DB::transaction(function () use ($product, $data) {
             $product = Product::query()
                 ->whereKey($product->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $existing = $product->reservations()
+                ->where('idempotency_key', $data['idempotency_key'])
+                ->first();
+
+            if ($existing !== null) {
+                if ($existing->quantity !== (int) $data['quantity']) {
+                    $error = ApiErrorCode::IdempotencyConflict;
+
+                    throw new HttpResponseException(
+                        response()->json([
+                            'error' => [
+                                'code' => $error->value,
+                                'message' => $error->message(),
+                            ],
+                        ], 409),
+                    );
+                }
+
+                return [$existing, true];
+            }
 
             if ($product->available_quantity < $data['quantity']) {
                 $error = ApiErrorCode::InsufficientStock;
@@ -40,14 +61,16 @@ class ReservationController extends Controller
 
             $product->decrement('available_quantity', $data['quantity']);
 
-            return $product->reservations()->create([
+            $reservation = $product->reservations()->create([
                 'quantity' => $data['quantity'],
                 'idempotency_key' => $data['idempotency_key'],
             ]);
+
+            return [$reservation, false];
         });
 
-        return (new ReservationResource($reservation))
+        return (new ReservationResource($reservation, $replayed))
             ->response()
-            ->setStatusCode(201);
+            ->setStatusCode($replayed ? 200 : 201);
     }
 }
