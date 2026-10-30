@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\Reservation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use RuntimeException;
 use Tests\TestCase;
 
 class ReservationTest extends TestCase
@@ -164,5 +166,43 @@ class ReservationTest extends TestCase
             $product->initial_stock,
             $product->available_quantity + $reserved,
         );
+    }
+
+    public function test_stock_is_restored_when_reservation_creation_fails(): void
+    {
+        $this->withoutExceptionHandling();
+
+        $stockDuringInsert = null;
+
+        Reservation::creating(function (Reservation $reservation) use (
+            &$stockDuringInsert,
+        ): void {
+            $stockDuringInsert = Product::query()
+                ->findOrFail($reservation->product_id)
+                ->available_quantity;
+
+            throw new RuntimeException('Simulated reservation insert failure.');
+        });
+
+        try {
+            $this->postJson($this->endpoint(), [
+                'quantity' => 3,
+            ], [
+                'Idempotency-Key' => 'rollback-test',
+            ]);
+
+            $this->fail('Expected the reservation creation to fail.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame(
+                'Simulated reservation insert failure.',
+                $exception->getMessage(),
+            );
+        } finally {
+            Reservation::flushEventListeners();
+        }
+
+        $this->assertSame(7, $stockDuringInsert);
+        $this->assertDatabaseCount('reservations', 0);
+        $this->assertStockInvariant(10);
     }
 }
