@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:18
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_DB: stockguard
+      POSTGRES_USER: stockguard
+      POSTGRES_PASSWORD: local_stockguard
+    volumes:
+      - stockguard_postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockguard -d stockguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  stockguard_postgres:
