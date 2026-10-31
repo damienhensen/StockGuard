@@ -1,4 +1,32 @@
 services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    volumes:
+      - .:/var/www/html
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: stockguard
+      DB_USERNAME: stockguard
+      DB_PASSWORD: local_stockguard
+      LOG_CHANNEL: stderr
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
   postgres:
     image: postgres:18
     ports:
@@ -10,7 +38,7 @@ services:
     volumes:
       - stockguard_postgres:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stockguard -d stockguard"]
+      test: [ "CMD-SHELL", "pg_isready -U stockguard -d stockguard" ]
       interval: 5s
       timeout: 5s
       retries: 10
