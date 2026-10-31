@@ -17,7 +17,7 @@ class StoreReservationRequest extends FormRequest
     }
 
     #[Override]
-    protected function prepareForValidation()
+    protected function prepareForValidation(): void
     {
         $this->merge([
             'idempotency_key' => $this->header('Idempotency-Key'),

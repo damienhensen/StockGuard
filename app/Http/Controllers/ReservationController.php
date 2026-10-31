@@ -8,7 +8,6 @@ use App\Http\Resources\ReservationResource;
 use App\Models\Product;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ReservationController extends Controller
